@@ -53,7 +53,9 @@ def train(classifier, log_interval, device, data_loader, optimizer, epoch):
         optimizer.zero_grad()
         output = classifier(data)
 
-        print(f"Batch index: {batch_idx}, Output size: {output.shape}, Target size: {target.shape}")
+        input_size = data.shape
+
+        print(f"Batch index: {batch_idx}, Input size: {input_size} Output size: {output.shape}, Target size: {target.shape}")
 
         loss = F.nll_loss(output, target)
         loss.backward()
