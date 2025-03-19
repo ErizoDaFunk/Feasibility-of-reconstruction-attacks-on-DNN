@@ -146,7 +146,7 @@ def main():
                                                    
             loss_TV = TV(reconstruction)
             loss_mse = F.mse_loss(reconstruction_prediction, prediction)
-            loss = loss_mse + loss_TV
+            loss = loss_mse + 0.05 * loss_TV
             loss.backward()
             optimizer.step()
 

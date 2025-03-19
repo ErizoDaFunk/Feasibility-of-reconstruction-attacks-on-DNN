@@ -1,0 +1,12 @@
+ Train epoch 13 
+Epoch: 13 Average MSE loss: 0.0086
+
+He ajustado la tasa de aprendizaje del optimizador Adam a 0.0001.
+He añadido un peso de 0.1 a la pérdida de TV en la función de pérdida.
+
+
+ Train epoch 13 
+Epoch: 13 Average MSE loss: 0.0038
+
+Aumentar la tasa de aprendizaje: Intenta aumentar la tasa de aprendizaje a 0.0002.
+Ajustar el peso de la pérdida de TV: Intenta reducir el peso de la pérdida de TV a 0.05.
