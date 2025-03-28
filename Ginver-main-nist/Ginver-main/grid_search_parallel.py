@@ -4,6 +4,11 @@ import itertools
 import pandas as pd
 import re
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+import threading
+
+# Add a lock for thread-safe printing and file operations
+print_lock = threading.Lock()
 
 def run_attack(params):
     """Executes attack.py with the specified parameters and returns the best MSE loss"""
@@ -19,14 +24,17 @@ def run_attack(params):
             cmd.append(f"--{param}")
             cmd.append(str(value))
     
-    # Execute the command
-    print(f"Executing: {' '.join(cmd)}")
+    # Execute the command with thread-safe printing
+    with print_lock:
+        print(f"Executing: {' '.join(cmd)}")
+    
     result = subprocess.run(cmd, capture_output=True, text=True)
     
     # Check for errors
     if result.returncode != 0:
-        print(f"Error executing command: {result.stderr}")
-        return None
+        with print_lock:
+            print(f"Error executing command: {result.stderr}")
+        return params, None
     
     # Extract the best MSE loss using regular expressions
     output = result.stdout
@@ -41,14 +49,15 @@ def run_attack(params):
     elif final_epoch_match:
         mse_loss = float(final_epoch_match.group(1))
     else:
-        print("Could not extract MSE loss from output")
-        print("Last 10 lines of output:")
-        print(last_lines)
-        return None
+        with print_lock:
+            print("Could not extract MSE loss from output")
+            print("Last 10 lines of output:")
+            print(last_lines)
+        return params, None
     
-    return mse_loss
+    return params, mse_loss
 
-def grid_search():
+def grid_search(max_workers=4):
     # Define results directory
     results_dir = '../grid_search_results'
     os.makedirs(results_dir, exist_ok=True)
@@ -57,8 +66,8 @@ def grid_search():
     param_grid = {
         'layer': [2],
         'batch-size': [64],
-        'lr': [0.0002],
-        'tv-weight': [0.025],
+        'lr': [0.0001, 0.0002],
+        'tv-weight': [0.025, 0.05],
         'patience': [2],
         'epochs': [14],  # Fixed epochs since we have early stopping
         'no-cuda': [True],  # Use CPU for testing
@@ -69,39 +78,55 @@ def grid_search():
     keys = list(param_grid.keys())
     combinations = list(itertools.product(*[param_grid[key] for key in keys]))
     
-    # Prepare DataFrame to save results
+    # Prepare list to save results
     results = []
     
     # Current date for filenames
     current_date = datetime.now().strftime("%Y%m%d")
     
-    # Execute grid search
+    # Execute grid search in parallel
     total_combinations = len(combinations)
-    for i, values in enumerate(combinations):
-        params = dict(zip(keys, values))
-        print(f"\nCombination {i+1}/{total_combinations}:")
-        print(params)
+    print(f"Starting grid search with {total_combinations} combinations using {max_workers} workers...")
+    
+    # Create a ThreadPoolExecutor to execute tasks in parallel
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks to the executor
+        futures = []
+        for i, values in enumerate(combinations):
+            params = dict(zip(keys, values))
+            with print_lock:
+                print(f"\nSubmitting combination {i+1}/{total_combinations}:")
+                print(params)
+            futures.append(executor.submit(run_attack, params))
         
-        # Execute attack.py with current parameters
-        mse_loss = run_attack(params)
-        
-        # Save results
-        params['mse_loss'] = mse_loss
-        results.append(params)
-        
-        # Save partial results after each execution
-        df = pd.DataFrame(results)
-        csv_path = os.path.join(results_dir, f'grid_search_results_{current_date}.csv')
-        df.to_csv(csv_path, index=False)
-        
-        # Show best result so far
-        if len(results) > 0 and any(pd.notna(df['mse_loss'])):
-            # Add check to avoid NaN errors
-            best_idx = df['mse_loss'].idxmin()
-            if pd.notna(best_idx):
-                print(f"\nBest result so far:")
-                print(f"MSE Loss: {df.loc[best_idx, 'mse_loss']}")
-                print(f"Parameters: {df.loc[best_idx].to_dict()}")
+        # Process results as they complete
+        for i, future in enumerate(futures):
+            params, mse_loss = future.result()
+            
+            with print_lock:
+                print(f"\nCompleted combination {i+1}/{total_combinations}:")
+                print(f"Parameters: {params}")
+                print(f"MSE Loss: {mse_loss}")
+            
+            # Save result
+            result_params = params.copy()
+            result_params['mse_loss'] = mse_loss
+            results.append(result_params)
+            
+            # Save partial results after each execution
+            with print_lock:
+                df = pd.DataFrame(results)
+                csv_path = os.path.join(results_dir, f'grid_search_results_{current_date}.csv')
+                df.to_csv(csv_path, index=False)
+                
+                # Show best result so far
+                if len(results) > 0 and any(pd.notna(df['mse_loss'])):
+                    # Add check to avoid NaN errors
+                    best_idx = df['mse_loss'].idxmin()
+                    if pd.notna(best_idx):
+                        print(f"\nBest result so far:")
+                        print(f"MSE Loss: {df.loc[best_idx, 'mse_loss']}")
+                        print(f"Parameters: {df.loc[best_idx].to_dict()}")
     
     # Final results analysis
     df = pd.DataFrame(results)
@@ -132,8 +157,8 @@ if __name__ == "__main__":
     # Create results directories if they don't exist
     os.makedirs('../grid_search_results', exist_ok=True)
     
-    # Execute grid search
-    best_params = grid_search()
+    # Execute parallel grid search (adjust the number of workers as needed)
+    best_params = grid_search(max_workers=4)
     
     # Command to execute the model with best parameters
     if best_params is not None:

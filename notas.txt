@@ -10,3 +10,32 @@ Epoch: 13 Average MSE loss: 0.0038
 
 Aumentar la tasa de aprendizaje: Intenta aumentar la tasa de aprendizaje a 0.0002.
 Ajustar el peso de la pérdida de TV: Intenta reducir el peso de la pérdida de TV a 0.05.
+
+
+---------------------------------------------------------------------------------------
+
+
+termius, entro en proxy1
+
+(base) PS C:\Users\HugoPrieto> ssh hprieto@proxy1 -i .\.ssh\key-git
+
+Estando en proxy1 hago:
+
+ssh hprieto@compute6 
+
+Comando para crear un pod:
+kubectl apply -f test.yaml
+
+Para eliminar pod:
+kubectl delete -f test.yaml 
+
+Para entrar en la terminal del pod, como un ssh:
+kubectl exec -it ginver-pod -- sh
+
+Comando para actualizar docker en dockerhub:
+docker build -f .\dockerfile\Dockerfile -t erizodafunk/ginver-test .
+docker push erizodafunk/ginver-test
+
+monitorear procesos:
+htop
+

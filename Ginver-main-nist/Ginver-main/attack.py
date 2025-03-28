@@ -11,6 +11,7 @@ import torchvision.utils as vutils
 from torchvision import datasets
 import os, shutil
 from utils import TV
+from torchsummary import summary
 
 # 以test_images作为训练集
 
@@ -180,6 +181,8 @@ def main():
     print("Data loaded.")
 
     classifier = Net().to(device)
+
+    # print(summary(classifier, (1, 64, 64),)) <--------------- Important line to check the model architecture
 
     print("Classifier loaded.")
 

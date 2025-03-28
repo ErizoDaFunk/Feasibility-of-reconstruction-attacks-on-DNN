@@ -1,7 +1,7 @@
 # Use the official Ubuntu base image
 FROM python:3.12-slim
 
-COPY ../Ginver-main .
+COPY ../Ginver-main-nist .
 
 # Copy requirements.txt first (to leverage caching)
 COPY dockerfile/requirements.txt .
