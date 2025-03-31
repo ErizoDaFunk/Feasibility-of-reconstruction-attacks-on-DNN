@@ -48,17 +48,37 @@ def run_attack(params):
     
     return mse_loss
 
+def params_to_key(params):
+    """Convert a parameter dictionary to a string key for comparison"""
+    return "_".join([f"{k}={v}" for k, v in sorted(params.items()) if k != 'mse_loss'])
+
+def has_been_tested(existing_results, params):
+    """Check if this parameter combination has already been tested"""
+    if existing_results is None or len(existing_results) == 0:
+        return False
+    
+    # Create a key for the current params
+    params_key = params_to_key(params)
+    
+    # Create keys for all existing results
+    existing_keys = [params_to_key({k: row[k] for k in params.keys()}) for _, row in existing_results.iterrows()]
+    
+    return params_key in existing_keys
+
 def grid_search():
-    # Define results directory
+    # Define results directory and fixed results filename
     results_dir = '../grid_search_results'
     os.makedirs(results_dir, exist_ok=True)
+    
+    results_file = os.path.join(results_dir, 'grid_search_results.csv')
+    final_results_file = os.path.join(results_dir, 'grid_search_final_results.csv')
     
     # Define hyperparameter values to explore
     param_grid = {
         'layer': [2],
         'batch-size': [64],
         'lr': [0.0002],
-        'tv-weight': [0.025],
+        'tv-weight': [0.015, 0.02, 0.025],
         'patience': [2],
         'epochs': [14],  # Fixed epochs since we have early stopping
         'no-cuda': [True],  # Use CPU for testing
@@ -69,30 +89,53 @@ def grid_search():
     keys = list(param_grid.keys())
     combinations = list(itertools.product(*[param_grid[key] for key in keys]))
     
-    # Prepare DataFrame to save results
-    results = []
+    # Load existing results if file exists
+    existing_results = None
+    if os.path.exists(results_file):
+        try:
+            existing_results = pd.read_csv(results_file)
+            print(f"Loaded existing results from {results_file} with {len(existing_results)} entries.")
+        except Exception as e:
+            print(f"Error loading existing results: {e}")
+            existing_results = None
     
-    # Current date for filenames
-    current_date = datetime.now().strftime("%Y%m%d")
+    # Initialize results DataFrame if no existing results
+    if existing_results is None:
+        results = []
+        df = pd.DataFrame(columns=keys + ['mse_loss'])
+    else:
+        results = existing_results.to_dict('records')
+        df = existing_results
     
     # Execute grid search
     total_combinations = len(combinations)
+    executed_combinations = 0
+    skipped_combinations = 0
+    
     for i, values in enumerate(combinations):
         params = dict(zip(keys, values))
+        
+        # Check if this combination has already been tested
+        if existing_results is not None and has_been_tested(existing_results, params):
+            print(f"\nSkipping combination {i+1}/{total_combinations} - already tested:")
+            print(params)
+            skipped_combinations += 1
+            continue
+        
         print(f"\nCombination {i+1}/{total_combinations}:")
         print(params)
         
         # Execute attack.py with current parameters
         mse_loss = run_attack(params)
+        executed_combinations += 1
         
         # Save results
         params['mse_loss'] = mse_loss
         results.append(params)
         
-        # Save partial results after each execution
+        # Update and save results after each execution
         df = pd.DataFrame(results)
-        csv_path = os.path.join(results_dir, f'grid_search_results_{current_date}.csv')
-        df.to_csv(csv_path, index=False)
+        df.to_csv(results_file, index=False)
         
         # Show best result so far
         if len(results) > 0 and any(pd.notna(df['mse_loss'])):
@@ -103,11 +146,10 @@ def grid_search():
                 print(f"MSE Loss: {df.loc[best_idx, 'mse_loss']}")
                 print(f"Parameters: {df.loc[best_idx].to_dict()}")
     
-    # Final results analysis
-    df = pd.DataFrame(results)
+    print(f"\nGrid search completed: {executed_combinations} combinations executed, {skipped_combinations} combinations skipped.")
     
-    # Find the best combination
-    if any(pd.notna(df['mse_loss'])):
+    # Final results analysis only if we have results
+    if len(results) > 0 and any(pd.notna(df['mse_loss'])):
         best_idx = df['mse_loss'].idxmin()
         best_params = df.loc[best_idx]
         
@@ -119,9 +161,8 @@ def grid_search():
         for key in keys:
             print(f"  {key}: {best_params[key]}")
         
-        # Save final results
-        final_csv_path = os.path.join(results_dir, f'grid_search_final_results_{current_date}.csv')
-        df.sort_values('mse_loss').to_csv(final_csv_path, index=False)
+        # Save final results sorted by MSE loss
+        df.sort_values('mse_loss').to_csv(final_results_file, index=False)
         
         return best_params
     else:
@@ -129,7 +170,7 @@ def grid_search():
         return None
 
 if __name__ == "__main__":
-    # Create results directories if they don't exist
+    # Create results directory if it doesn't exist
     os.makedirs('../grid_search_results', exist_ok=True)
     
     # Execute grid search
