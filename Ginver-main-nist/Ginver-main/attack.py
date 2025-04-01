@@ -320,7 +320,7 @@ def main():
             }
             torch.save(state, '../ModelResult/blackbox/'+mode+'/'+layer_name+'/inversion.pth')
             print('\nTest inversion model on test set: Average MSE loss: {}_{:.4f}\n'.format(epoch, mse_loss))
-            record(classifier, inversion, device, test_loader, epoch, flag+"_same", 32, mse_loss, mode, layer_name, end_epoch)
+            # record(classifier, inversion, device, test_loader, epoch, flag+"_same", 32, mse_loss, mode, layer_name, end_epoch)
         else:
             patience_counter += 1  
             print(f'Early stopping patience: {patience_counter}/{patience}')
@@ -341,7 +341,7 @@ def main():
             if(needs_to_save_model(save_model, layer, mse_loss)):
                 print("Saving final inversion model...") 
                 torch.save(state, '../ModelResult/blackbox/'+mode+'/'+layer_name+'/final_inversion.pth')
-            record(classifier, inversion, device, test_loader, epoch, flag + "_same", 32, mse_loss, mode, layer_name, end_epoch)
+            # record(classifier, inversion, device, test_loader, epoch, flag + "_same", 32, mse_loss, mode, layer_name, end_epoch)
 
 if __name__ == '__main__':
     main()
