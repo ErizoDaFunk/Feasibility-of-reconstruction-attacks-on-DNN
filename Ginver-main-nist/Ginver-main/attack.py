@@ -12,6 +12,7 @@ from torchvision import datasets
 import os, shutil
 from utils import TV
 from torchsummary import summary
+import pandas as pd
 
 # 以test_images作为训练集
 
@@ -25,7 +26,7 @@ def train(classifier, inversion, device, data_loader, optimizer, epoch, tv_weigh
 
         optimizer.zero_grad()
         with torch.no_grad():
-            prediction = classifier(data, relu=2)
+            prediction = classifier(data, relu=2) # TODO this is harodcoded, need to be changed
         reconstruction = inversion(prediction)
 
         reconstruction_prediction = classifier(reconstruction, relu=2)
@@ -84,39 +85,110 @@ def record(classifier, inversion, device, data_loader, epoch, msg, num, loss, mo
                                 normalize=False)
             break
 
+def needs_to_save_model(save_model_flag, layer, new_mse_loss):
+    """
+    Check if the model should be saved based on the save_model_flag and
+    whether the current MSE loss is better than previous results
+    """
+    if save_model_flag:
+        # Try to load the grid search results file to check for better MSE
+        results_file = '../grid_search_results/grid_search_final_results.csv'
+        
+        # Create the results directory if it doesn't exist
+        os.makedirs(os.path.dirname(results_file), exist_ok=True)
+        
+        if os.path.exists(results_file):
+            try:
+                # Load the grid search results
+                results_df = pd.read_csv(results_file)
+                
+                # Check if the dataframe is empty
+                if results_df.empty:
+                    print(f"Grid search results file is empty")
+                    return True
+                
+                # Filter results for the current layer
+                if 'layer' in results_df.columns:
+                    layer_results = results_df[results_df['layer'] == layer]
+                    
+                    if not layer_results.empty and 'mse_loss' in layer_results.columns:
+                        # Get the best MSE loss for this layer
+                        best_mse_loss = layer_results['mse_loss'].min()
+                        # Check if the new MSE loss is better than the best MSE loss
+                        if new_mse_loss < best_mse_loss:   
+                            print(f"New MSE loss {new_mse_loss:.6f} is better than previous best {best_mse_loss:.6f}")
+                            return True
+                        else:
+                            print(f"New MSE loss {new_mse_loss:.6f} is not better than previous best {best_mse_loss:.6f}")
+                            return False
+                    else:
+                        print(f"No previous results found for layer {layer} in grid search")
+                        return True
+                else:
+                    print(f"'layer' column not found in grid search results")
+                    return True
+            except Exception as e:
+                print(f"Error reading grid search results: {e}")
+                return True
+            
+        else:
+            # Create a new CSV file with headers if it doesn't exist
+            default_params = get_default_params()
+            df = pd.DataFrame(columns=['layer', 'batch-size', 'test-batch-size', 'epochs', 'tv-weight', 'patience', 'lr', 'gamma', 'mse_loss'])
+            df.to_csv(results_file, index=False)
+            print(f"Created new grid search results file {results_file}")
+            return True
+        
+    else:
+        return False
+    
+def get_default_params():
+    """Return default parameters for training the model"""
+    return {
+        'layer': 2,
+        'batch-size': 64,
+        'test-batch-size': 1000,
+        'epochs': 14,
+        'tv-weight': 0.05,
+        'patience': 3,
+        'lr': 0.0002,
+        'gamma': 0.7,
+        'seed': 1,
+        'no-cuda': False,
+        'save-model': False
+    }
 
 
 def main():
 
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch MNIST Attack')
-    parser.add_argument('--layer', type=int, default=2, metavar='N',
-                        help='layer to attack (default: 2)')
-    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
-                        help='input batch size for training (default: 64)')
-    parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
-                        help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=14, metavar='N',
-                        help='number of epochs to train (default: 14)')
-    parser.add_argument('--tv-weight', type=float, default=0.05, metavar='W',
-                   help='weight for TV loss (default: 0.05)')
-    parser.add_argument('--patience', type=int, default=3, metavar='P',
-                    help='early stopping patience (default: 3)')
-    parser.add_argument('--lr', type=float, default=0.0002, metavar='LR',
-                        help='learning rate (default: 0.0002)')
-    parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
-                        help='Learning rate step gamma (default: 0.7)')
-    parser.add_argument('--no-cuda', action='store_true', default=False,
+
+    # Get default parameters
+    default_params = get_default_params()
+    
+    # Use default values from the function
+    parser.add_argument('--layer', type=int, default=default_params['layer'], metavar='N',
+                        help=f'layer to attack (default: {default_params["layer"]})')
+    parser.add_argument('--batch-size', type=int, default=default_params['batch-size'], metavar='N',
+                        help=f'input batch size for training (default: {default_params["batch-size"]})')
+    parser.add_argument('--test-batch-size', type=int, default=default_params['test-batch-size'], metavar='N',
+                        help=f'input batch size for testing (default: {default_params["test-batch-size"]})')
+    parser.add_argument('--epochs', type=int, default=default_params['epochs'], metavar='N',
+                        help=f'number of epochs to train (default: {default_params["epochs"]})')
+    parser.add_argument('--tv-weight', type=float, default=default_params['tv-weight'], metavar='W',
+                   help=f'weight for TV loss (default: {default_params["tv-weight"]})')
+    parser.add_argument('--patience', type=int, default=default_params['patience'], metavar='P',
+                    help=f'early stopping patience (default: {default_params["patience"]})')
+    parser.add_argument('--lr', type=float, default=default_params['lr'], metavar='LR',
+                        help=f'learning rate (default: {default_params["lr"]})')
+    parser.add_argument('--gamma', type=float, default=default_params['gamma'], metavar='M',
+                        help=f'Learning rate step gamma (default: {default_params["gamma"]})')
+    parser.add_argument('--no-cuda', action='store_true', default=default_params['no-cuda'],
                         help='disables CUDA training')
-    # parser.add_argument('--no-mps', action='store_true', default=False,
-    #                     help='disables macOS GPU training')
-    # parser.add_argument('--dry-run', action='store_true', default=False,
-    #                     help='quickly check a single pass')
-    parser.add_argument('--seed', type=int, default=1, metavar='S',
-                        help='random seed (default: 1)')
-    # parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-    #                     help='how many batches to wait before logging training status')
-    parser.add_argument('--save-model', action='store_true', default=False,
+    parser.add_argument('--seed', type=int, default=default_params['seed'], metavar='S',
+                        help=f'random seed (default: {default_params["seed"]})')
+    parser.add_argument('--save-model', action='store_true', default=default_params['save-model'],
                         help='For Saving the current Model')
     args = parser.parse_args()
 
@@ -134,6 +206,7 @@ def main():
     batch_size = args.batch_size
     test_batch_size = args.test_batch_size
     learning_rate = args.lr
+    save_model = args.save_model
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -265,7 +338,8 @@ def main():
                 'optimizer': optimizer.state_dict(),
                 'best_mse_loss': best_mse_loss
             }
-            if(args.save_model):
+            if(needs_to_save_model(save_model, layer, mse_loss)):
+                print("Saving final inversion model...") 
                 torch.save(state, '../ModelResult/blackbox/'+mode+'/'+layer_name+'/final_inversion.pth')
             record(classifier, inversion, device, test_loader, epoch, flag + "_same", 32, mse_loss, mode, layer_name, end_epoch)
 
