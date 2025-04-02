@@ -19,7 +19,7 @@ classifier.eval()
 
 # Cargar el modelo de ataque
 inversion = AdversarialNet(nc=1, ngf=128, nz=128).to(device)
-checkpoint = torch.load('../ModelResult/blackbox/train/relu2_all_white_64/inversion.pth', map_location=device, weights_only=True)
+checkpoint = torch.load('../ModelResult/blackbox/train/relu2_all_white_64/final_inversion.pth', map_location=device, weights_only=True)
 inversion.load_state_dict(checkpoint['model'])
 inversion.eval()
 

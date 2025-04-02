@@ -274,7 +274,7 @@ def main():
 
     # Load inversion
     path = '../ModelResult/blackbox/'+layer_name+'/inversion.pth'
-    best_mse_loss = 0.0600
+    best_mse_loss = 0.0600 # TODO why this number?
     begin_epoch = 1
 
     print("Loading inversion model...")
@@ -288,7 +288,7 @@ def main():
     except:
         print("=> load inversion checkpoint '{}' failed".format(path))
 
-    target_mse_loss = best_mse_loss - 0.0005
+    # target_mse_loss = best_mse_loss - 0.0005
 
     print("Inversion model loaded.")
 

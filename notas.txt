@@ -9,10 +9,21 @@ He añadido un peso de 0.1 a la pérdida de TV en la función de pérdida.
 Epoch: 13 Average MSE loss: 0.0038
 
 Aumentar la tasa de aprendizaje: Intenta aumentar la tasa de aprendizaje a 0.0002.
-Ajustar el peso de la pérdida de TV: Intenta reducir el peso de la pérdida de TV a 0.05.
+Ajustar el peso de la pérdida de TV: Intenta reducir el peso de la pérdida de TV a 0.05.ç
+
+
+layer,batch-size,lr,tv-weight,patience,epochs,no-cuda,save-model,mse_loss
+2,64,0.0002,0.025,2,14,True,True,0.0018
 
 
 ---------------------------------------------------------------------------------------
+
+-Averiguar por que mejor loss = peor definicion, hay que comparar con mse y ssim real
+-Arreglar el parallel grid search
+
+---------------------------------------------------------------------------------------
+
+
 
 
 termius, entro en proxy1

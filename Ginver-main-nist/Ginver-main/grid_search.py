@@ -120,7 +120,7 @@ def grid_search():
         'layer': [2],
         'batch-size': [64],
         'lr': [0.0002],
-        'tv-weight': [0.015, 0.18, 0.02, 0.025],
+        'tv-weight': [0.01, 0.025, 0.05, 0.1, 0.5], # it is not been used
         'patience': [2],
         'epochs': [14],  # Fixed epochs since we have early stopping
         'no-cuda': [True],  # Use CPU for testing
