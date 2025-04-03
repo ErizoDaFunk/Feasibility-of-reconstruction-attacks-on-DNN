@@ -1,0 +1,7 @@
+# Requirements
+torch==2.1.2
+torchvision==0.16.2
+numpy==1.26.3
+matplotlib==3.9.0
+fvcore==0.1.5.post20221221
+torchviz==0.0.3

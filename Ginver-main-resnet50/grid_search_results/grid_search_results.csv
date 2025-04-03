@@ -1,0 +1,1 @@
+layer,batch-size,test-batch-size,epochs,tv-weight,patience,lr,gamma,mse_loss
