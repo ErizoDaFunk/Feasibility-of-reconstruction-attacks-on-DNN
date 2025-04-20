@@ -525,11 +525,65 @@ class Net(nn.Module):
 class ResNetInversion_MaxPool(nn.Module):
     def __init__(self, nc=3, ngf=64):
         super(ResNetInversion_MaxPool, self).__init__()
-
         
         self.decoder = nn.Sequential(
-
+            # 1. Invert MaxPool (3×3, stride 2)
+            nn.ConvTranspose2d(64, 64, kernel_size=3, stride=2, padding=1, output_padding=1),
+            
+            # 2. No specific inversion for ReLU, but use ReLU in decoder
+            nn.ReLU(inplace=True),
+            
+            # 3. Invert BatchNorm - just use another BatchNorm with learned parameters
+            nn.BatchNorm2d(64),
+            
+            # 4. Invert Conv (7×7, 64, stride 2) - transpose convolution
+            nn.ConvTranspose2d(64, nc, kernel_size=7, stride=2, padding=3, output_padding=1),
+            
+            # Final activation to produce image-like outputs
+            nn.Tanh()
         )
     
     def forward(self, x):
+        return self.decoder(x)
+    
+
+################################################################################
+#                                                                              #
+#           ResNet Inversion Model Arquitecture proposde by Paper              #
+#                                                                              #
+################################################################################
+
+class ResnetInversion_Generic(nn.Module):
+    # nc 要生成的图片通道 ngf 中间值 nz 输入的通道数
+    def __init__(self, nc, ngf, nz):
+        super(ResnetInversion_Generic, self).__init__()
+
+        self.nc = nc
+        self.ngf = ngf
+        self.nz = nz
+
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(nz, 8*ngf, 4, 2, 1),
+            nn.BatchNorm2d(8*ngf),
+            nn.Tanh(),
+
+            nn.ConvTranspose2d(8 * ngf, 4 * ngf, 4, 2, 1), #28*28
+            nn.BatchNorm2d(4 * ngf),
+            nn.Tanh(),
+
+            nn.ConvTranspose2d(4 * ngf, 2 * ngf, 4, 2, 1), #56*56
+            nn.BatchNorm2d(2 * ngf),
+            nn.Tanh(),
+
+            nn.ConvTranspose2d(2 * ngf, ngf, 4, 2, 1), #112*112
+            nn.BatchNorm2d(ngf),
+            nn.Tanh(),
+
+            nn.ConvTranspose2d(ngf, nc, 4, 2, 1), #224*224
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        # 这个nz应该是1024
+        x = x.view(-1, self.nz, 7, 7)
         return self.decoder(x)

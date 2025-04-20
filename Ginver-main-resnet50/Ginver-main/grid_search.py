@@ -117,9 +117,10 @@ def grid_search():
     
     # Define hyperparameter values to explore
     param_grid = {
-        'layer': [2],
-        'batch-size': [64],
-        'lr': [0.0002],
+        'layer': ['maxpool'],
+        'batch-size': [32],
+        'test-batch-size': [64],
+        'lr': [0.0001],
         'tv-weight': [0.01, 0.025, 0.05, 0.1, 0.5], # it is not been used
         'patience': [2],
         'epochs': [14],  # Fixed epochs since we have early stopping
