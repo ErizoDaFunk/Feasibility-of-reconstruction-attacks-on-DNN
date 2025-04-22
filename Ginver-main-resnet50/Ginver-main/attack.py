@@ -4,20 +4,21 @@ import torch
 import torch.optim as optim
 from torchvision import transforms
 import torch.nn.functional as F
-from Model import AdversarialNet, Net
+from Model import ResnetInversion_Generic, ResNet50EMBL
 import numpy as np
 import random
 import torchvision.utils as vutils
-from torchvision import datasets
+from torchvision.datasets import ImageFolder
 import os, shutil
 from utils import TV
 from torchsummary import summary
 import pandas as pd
+import warnings
 
 # 以test_images作为训练集
 
 # 定义Train函数
-def train(classifier, inversion, device, data_loader, optimizer, epoch, tv_weight):
+def train(classifier, inversion, device, data_loader, optimizer, epoch, tv_weight, layer):
     classifier.eval()
     inversion.train()
 
@@ -26,12 +27,12 @@ def train(classifier, inversion, device, data_loader, optimizer, epoch, tv_weigh
 
         optimizer.zero_grad()
         with torch.no_grad():
-            prediction = classifier(data, relu=2) # TODO this is harodcoded, need to be changed
+            prediction = classifier(data, relu=layer)
         reconstruction = inversion(prediction)
 
-        reconstruction_prediction = classifier(reconstruction, relu=2)
+        reconstruction_prediction = classifier(reconstruction, relu=layer)
                                                 
-        # Asegúrate de que las dimensiones coincidan
+        # Ensure the size of reconstruction_prediction matches prediction
         if reconstruction_prediction.size() != prediction.size():
             reconstruction_prediction = F.interpolate(reconstruction_prediction, size=prediction.size()[2:])                                     
                                                 
@@ -45,14 +46,14 @@ def train(classifier, inversion, device, data_loader, optimizer, epoch, tv_weigh
 
 
     # test
-def test(classifier, inversion, device, data_loader):
+def test(classifier, inversion, device, data_loader, layer):
     classifier.eval()
     inversion.eval()
     mse_loss = 0
     with torch.no_grad():
         for data, target in data_loader:
             data, target = data.to(device), target.to(device)
-            prediction = classifier(data, relu=2)
+            prediction = classifier(data, relu=layer)
             reconstruction = inversion(prediction)
             mse_loss += F.mse_loss(reconstruction, data, reduction='sum').item()
 
@@ -145,7 +146,7 @@ def needs_to_save_model(save_model_flag, layer, new_mse_loss):
 def get_default_params():
     """Return default parameters for training the model"""
     return {
-        'layer': 2,
+        'layer': "maxpool",
         'batch-size': 64,
         'test-batch-size': 1000,
         'epochs': 14,
@@ -154,22 +155,25 @@ def get_default_params():
         'lr': 0.0002,
         'gamma': 0.7,
         'seed': 1,
-        'no-cuda': False,
-        'save-model': False
+        'no-cuda': True,
+        'save-model': True
     }
 
 
 def main():
+    # Suppress warnings
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
 
     # Training settings
-    parser = argparse.ArgumentParser(description='PyTorch MNIST Attack')
+    parser = argparse.ArgumentParser(description='PyTorch ResNet EMBL Attack')
 
     # Get default parameters
     default_params = get_default_params()
     
     # Use default values from the function
-    parser.add_argument('--layer', type=int, default=default_params['layer'], metavar='N',
-                        help=f'layer to attack (default: {default_params["layer"]})')
+    parser.add_argument('--layer', type=str, default=str(default_params['layer']), metavar='LAYER',
+                    help=f'layer to attack (default: {default_params["layer"]}, can be a string identifier)')
     parser.add_argument('--batch-size', type=int, default=default_params['batch-size'], metavar='N',
                         help=f'input batch size for training (default: {default_params["batch-size"]})')
     parser.add_argument('--test-batch-size', type=int, default=default_params['test-batch-size'], metavar='N',
@@ -196,8 +200,8 @@ def main():
 
 
     layer = args.layer
-    layer_name = "relu" + str(layer) + "_all_white_64/"
-    flag = "relu" + str(layer) + "_all_white_64"
+    layer_name = str(layer) + "_all_white_64/"
+    flag = str(layer) + "_all_white_64"
     seed = args.seed
     mode = "train"
     step = args.gamma 
@@ -230,44 +234,33 @@ def main():
     os.makedirs('../ModelResult/blackbox/'+mode+'/'+layer_name, exist_ok=True)
 
     transform = transforms.Compose([
-        transforms.ToTensor(),
+        transforms.ToTensor()
     ])
 
-    print("Loading data...")
+    print("Loading Embl dataset...")
 
-    train_set = datasets.MNIST('../data', train=True, download=True, transform=transform)
-    test_set = datasets.MNIST('../data', train=False, transform=transform)
+    train_dataset = ImageFolder(root='../data/GS/train', transform=transform)
+    test_dataset = ImageFolder(root='../data/GS/test', transform=transform)
 
-    train_kwargs = {'batch_size': batch_size}
-    test_kwargs = {'batch_size': test_batch_size} 
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False, num_workers=2)
 
-    if use_cuda:
-        cuda_kwargs = {'num_workers': 1,
-                       'pin_memory': True,
-                       'shuffle': True}
-        train_kwargs.update(cuda_kwargs)
-        test_kwargs.update(cuda_kwargs)
-    
-    train_loader = torch.utils.data.DataLoader(train_set,**train_kwargs)
-    test_loader = torch.utils.data.DataLoader(test_set, **test_kwargs)
+    print(f"Data loaded: {len(train_loader.dataset)} training samples, {len(test_loader.dataset)} test samples.")
 
-    print("Data loaded.")
-
-    classifier = Net().to(device)
+    classifier = ResNet50EMBL().to(device)
 
     # print(summary(classifier, (1, 64, 64),)) <--------------- Important line to check the model architecture
 
     print("Classifier loaded.")
 
-    inversion = AdversarialNet(nc=1, ngf=128, nz=128).to(device)
+    inversion = ResnetInversion_Generic(nc=1, ngf=128, nz=128).to(device)
 
     print("Inversion loaded.")
 
     optimizer = optim.Adam(inversion.parameters(), lr=learning_rate, betas=(0.5, 0.999), amsgrad=True)
 
     # Load classifier
-    path = "../ModelResult/classifier/classifier_32.pth"
-
+    path = "../ModelResult/classifier/classifier.pth"
 
     checkpoint = torch.load(path, map_location=device)
     classifier.load_state_dict(checkpoint)
@@ -301,8 +294,8 @@ def main():
 
     for epoch in range(begin_epoch, end_epoch):
         print("Epoch: ", epoch)
-        train(classifier, inversion, device, train_loader, optimizer, epoch, tv_weight)
-        mse_loss = test(classifier, inversion, device, test_loader)
+        train(classifier, inversion, device, train_loader, optimizer, epoch, tv_weight, layer)
+        mse_loss = test(classifier, inversion, device, test_loader, layer)
 
         print('Epoch: {} Average MSE loss: {:.4f}'.format(epoch, mse_loss))
 

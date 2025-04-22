@@ -1,15 +1,36 @@
-import torch
-import torchvision
-import torchvision.transforms as transforms
-from torch.utils.data import Dataset
+import urllib.request
+import tarfile
+import os
 
-class CIFAR10Dataset(Dataset):
-    def __init__(self, train=True, transform=None):
-        self.dataset = torchvision.datasets.CIFAR10(root='./data', train=train, download=True, transform=transform)
+# UNIX
+# wget -qO - https://github.com/metaspace2020/offsample/releases/download/0.2/GS.tar.gz | tar -xvz
 
-    def __getitem__(self, index):
-        img, label = self.dataset[index]
-        return img, label
+# Define the base and data directories
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
 
-    def __len__(self):
-        return len(self.dataset)
+# Dataset URL and paths
+url = "https://github.com/metaspace2020/offsample/releases/download/0.2/GS.tar.gz"
+filename = "GS.tar.gz"
+file_path = os.path.join(DATA_DIR, filename)
+extract_path = os.path.join(DATA_DIR, 'GS')
+
+def download_and_extract():
+    if not os.path.exists(file_path):
+        print("📥 Downloading:", url)
+        urllib.request.urlretrieve(url, file_path)
+        print(f"✅ Download complete: {file_path}")
+    else:
+        print("✅ File already downloaded.")
+
+    if not os.path.exists(extract_path):
+        print("📦 Extracting tar.gz file...")
+        with tarfile.open(file_path, "r:gz") as tar:
+            tar.extractall(path=extract_path)
+        print(f"✅ Extraction complete at: {extract_path}")
+    else:
+        print("✅ Dataset already extracted.")
+
+if __name__ == "__main__":
+    download_and_extract()
