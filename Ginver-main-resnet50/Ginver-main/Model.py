@@ -1033,7 +1033,9 @@ class ResNet50EMBL(nn.Module):
         return x
 
     def eval(self):
-        return None
+        # Llama al método eval() de la clase base (nn.Module)
+        super(ResNet50EMBL, self).eval()
+        return self  # Devuelve self para permitir encadenamiento
 
 ################################################################################
 #                                                                              #
@@ -1105,3 +1107,4 @@ class ResnetInversion_Generic(nn.Module):
     def forward(self, x):
         # 这个nz应该是1024
         x = x.view(-1, self.nz, 7, 7)
+        return self.decoder(x)

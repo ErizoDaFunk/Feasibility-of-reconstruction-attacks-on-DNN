@@ -4,7 +4,7 @@ import torch
 import torch.optim as optim
 from torchvision import transforms
 import torch.nn.functional as F
-from Model import ResnetInversion_Generic, ResNet50EMBL
+from Model import ResNetInversion_MaxPool, ResNet50EMBL
 import numpy as np
 import random
 import torchvision.utils as vutils
@@ -25,10 +25,21 @@ def train(classifier, inversion, device, data_loader, optimizer, epoch, tv_weigh
     for batch_idx, (data, target) in enumerate(data_loader):
         data, target = data.to(device), target.to(device)
 
+        # print in which batch are we from total of epoch
+        if batch_idx % 100 == 0:
+            print('Train epoch {} [{}/{} ({:.0f}%)]'.format(
+                epoch, batch_idx * len(data), len(data_loader.dataset),
+                100. * batch_idx / len(data_loader)))
+
         optimizer.zero_grad()
         with torch.no_grad():
             prediction = classifier(data, layer_name=layer)
+
+        # print("aaaa ", prediction.shape)
+
         reconstruction = inversion(prediction)
+
+        # print("bbbb ", reconstruction.shape)
 
         reconstruction_prediction = classifier(reconstruction, layer_name=layer)
                                                 
@@ -70,7 +81,7 @@ def record(classifier, inversion, device, data_loader, epoch, msg, num, loss, mo
     with torch.no_grad():
         for data, target in data_loader:
             data, target = data.to(device), target.to(device)
-            prediction = classifier(data, layer_name=layer)
+            prediction = classifier(data, layer_name=layer_name)
             reconstruction = inversion(prediction)
 
             truth = data[0:num]
@@ -147,7 +158,7 @@ def get_default_params():
     """Return default parameters for training the model"""
     return { # TODO add arquitecture of attack net
         'layer': "maxpool",
-        'batch-size': 64,
+        'batch-size': 8,
         'test-batch-size': 1000,
         'epochs': 14,
         'tv-weight': 0.05,
@@ -263,7 +274,7 @@ def main():
 
     print("Classifier loaded.")
 
-    inversion = ResnetInversion_Generic(nc=3, ngf=128, nz=128).to(device)
+    inversion = ResNetInversion_MaxPool(nc=3).to(device)
 
     print("Inversion loaded.")
 

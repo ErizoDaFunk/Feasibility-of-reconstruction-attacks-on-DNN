@@ -12,6 +12,9 @@ import warnings
 # Add parent directory to path to import Model
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Después importa desde Model
+from Model import ResnetInversion_Generic, ResNet50EMBL
+
 # Path to test images folder - update with your test image directory
 TEST_IMAGES_PATH = "./test_images"  # Update this path if needed
 
@@ -47,6 +50,7 @@ def run_inference():
         model_path = "../../ModelResult/classifier/classifier.pth"
         model = torch.load(model_path, map_location=device)
         model.eval()
+        model = ResNet50EMBL(model).to(device)
         print(f"Model loaded from {model_path}")
         
     except Exception as e:
