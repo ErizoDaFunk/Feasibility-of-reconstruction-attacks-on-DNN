@@ -27,10 +27,10 @@ def train(classifier, inversion, device, data_loader, optimizer, epoch, tv_weigh
 
         optimizer.zero_grad()
         with torch.no_grad():
-            prediction = classifier(data, relu=layer)
+            prediction = classifier(data, layer_name=layer)
         reconstruction = inversion(prediction)
 
-        reconstruction_prediction = classifier(reconstruction, relu=layer)
+        reconstruction_prediction = classifier(reconstruction, layer_name=layer)
                                                 
         # Ensure the size of reconstruction_prediction matches prediction
         if reconstruction_prediction.size() != prediction.size():
@@ -53,7 +53,7 @@ def test(classifier, inversion, device, data_loader, layer):
     with torch.no_grad():
         for data, target in data_loader:
             data, target = data.to(device), target.to(device)
-            prediction = classifier(data, relu=layer)
+            prediction = classifier(data, layer_name=layer)
             reconstruction = inversion(prediction)
             mse_loss += F.mse_loss(reconstruction, data, reduction='sum').item()
 
@@ -70,7 +70,7 @@ def record(classifier, inversion, device, data_loader, epoch, msg, num, loss, mo
     with torch.no_grad():
         for data, target in data_loader:
             data, target = data.to(device), target.to(device)
-            prediction = classifier(data, relu=2)
+            prediction = classifier(data, layer_name=layer)
             reconstruction = inversion(prediction)
 
             truth = data[0:num]
@@ -135,7 +135,7 @@ def needs_to_save_model(save_model_flag, layer, new_mse_loss):
         else:
             # Create a new CSV file with headers if it doesn't exist
             default_params = get_default_params()
-            df = pd.DataFrame(columns=['layer', 'batch-size', 'test-batch-size', 'epochs', 'tv-weight', 'patience', 'lr', 'gamma', 'mse_loss'])
+            df = pd.DataFrame(columns=['layer', 'batch-size', 'test-batch-size', 'epochs', 'tv-weight', 'patience', 'lr', 'gamma', 'mse_loss']) # TODO add arquitecture of attack net
             df.to_csv(results_file, index=False)
             print(f"Created new grid search results file {results_file}")
             return True
@@ -145,7 +145,7 @@ def needs_to_save_model(save_model_flag, layer, new_mse_loss):
     
 def get_default_params():
     """Return default parameters for training the model"""
-    return {
+    return { # TODO add arquitecture of attack net
         'layer': "maxpool",
         'batch-size': 64,
         'test-batch-size': 1000,
@@ -170,7 +170,8 @@ def main():
 
     # Get default parameters
     default_params = get_default_params()
-    
+
+    # TODO add arquitecture of attack net
     # Use default values from the function
     parser.add_argument('--layer', type=str, default=str(default_params['layer']), metavar='LAYER',
                     help=f'layer to attack (default: {default_params["layer"]}, can be a string identifier)')
@@ -198,9 +199,9 @@ def main():
 
     print(args)
 
-
+    # TODO add arquitecture of attack net (all_white vs black)
     layer = args.layer
-    layer_name = str(layer) + "_all_white_64/"
+    layer_name = str(layer) + "_all_white_64"
     flag = str(layer) + "_all_white_64"
     seed = args.seed
     mode = "train"
@@ -234,26 +235,35 @@ def main():
     os.makedirs('../ModelResult/blackbox/'+mode+'/'+layer_name, exist_ok=True)
 
     transform = transforms.Compose([
-        transforms.ToTensor()
+        transforms.Resize(256),
+        transforms.CenterCrop(224),  # ResNet50 expects 224x224 images
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],  # ImageNet normalization
+            std=[0.229, 0.224, 0.225]
+        )
     ])
 
     print("Loading Embl dataset...")
 
-    train_dataset = ImageFolder(root='../data/GS/train', transform=transform)
-    test_dataset = ImageFolder(root='../data/GS/test', transform=transform)
+    train_dataset = ImageFolder(root='../data/GS_organized/train', transform=transform)
+    test_dataset = ImageFolder(root='../data/GS_organized/test', transform=transform)
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False, num_workers=2)
 
     print(f"Data loaded: {len(train_loader.dataset)} training samples, {len(test_loader.dataset)} test samples.")
 
-    classifier = ResNet50EMBL().to(device)
+    model_path = "../ModelResult/classifier/classifier.pth"
+    model = torch.load(model_path)
+
+    classifier = ResNet50EMBL(model).to(device)
 
     # print(summary(classifier, (1, 64, 64),)) <--------------- Important line to check the model architecture
 
     print("Classifier loaded.")
 
-    inversion = ResnetInversion_Generic(nc=1, ngf=128, nz=128).to(device)
+    inversion = ResnetInversion_Generic(nc=3, ngf=128, nz=128).to(device)
 
     print("Inversion loaded.")
 
@@ -263,7 +273,7 @@ def main():
     path = "../ModelResult/classifier/classifier.pth"
 
     checkpoint = torch.load(path, map_location=device)
-    classifier.load_state_dict(checkpoint)
+    classifier = ResNet50EMBL(checkpoint).to(device)
 
     # Load inversion
     path = '../ModelResult/blackbox/'+layer_name+'/inversion.pth'
