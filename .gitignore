@@ -1,0 +1,60 @@
+# Datasets
+**/data/
+**/Dataset/
+Ginver-main/Dataset/
+Ginver-main-nist/data/
+Ginver-main-resnet50/data/
+**/tiny-imagenet-200/
+**/tiny-imagenet-200.zip
+**/GS_organized/
+**/GS_original/
+**/EMBL_dataset/
+
+# Archivos específicos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Entornos virtuales
+venv/
+ENV/
+env/
+.env/
+.venv/
+env.bak/
+venv.bak/
+
+# IDE y editores
+.idea/
+.vscode/*
+!.vscode/launch.json
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Archivos temporales
+*.log
+*.tmp
+temp/
+tmp/
+
+# Otros
+.ipynb_checkpoints/
