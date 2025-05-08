@@ -114,6 +114,7 @@ def parallel_grid_search(max_workers=None):
     
     # Define hyperparameter values to explore
     param_grid = {
+        'mode': ['whitebox'],
         'layer': [2],
         'batch-size': [64],
         'lr': [0.0002, 0.0001],  # More values

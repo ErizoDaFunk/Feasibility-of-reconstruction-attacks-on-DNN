@@ -4,7 +4,7 @@ import torch
 import torch.optim as optim
 from torchvision import transforms
 import torch.nn.functional as F
-from Model import ResNetInversion_MaxPool, ResNet50EMBL
+import Model
 import numpy as np
 import random
 import torchvision.utils as vutils
@@ -145,8 +145,7 @@ def needs_to_save_model(save_model_flag, layer, new_mse_loss):
             
         else:
             # Create a new CSV file with headers if it doesn't exist
-            default_params = get_default_params()
-            df = pd.DataFrame(columns=['layer', 'batch-size', 'test-batch-size', 'epochs', 'tv-weight', 'patience', 'lr', 'gamma', 'mse_loss']) # TODO add arquitecture of attack net
+            df = pd.DataFrame(columns=['mode','layer', 'batch-size', 'test-batch-size', 'epochs', 'tv-weight', 'patience', 'lr', 'gamma', 'mse_loss'])
             df.to_csv(results_file, index=False)
             print(f"Created new grid search results file {results_file}")
             return True
@@ -156,7 +155,8 @@ def needs_to_save_model(save_model_flag, layer, new_mse_loss):
     
 def get_default_params():
     """Return default parameters for training the model"""
-    return { # TODO add arquitecture of attack net
+    return {
+        'mode': "whitebox",
         'layer': "maxpool",
         'batch-size': 8,
         'test-batch-size': 1000,
@@ -171,6 +171,23 @@ def get_default_params():
     }
 
 
+def get_model_architecture(mode, layer):
+    """Return the model architecture based on the mode and layer"""
+
+    if mode == "blackbox":
+        return Model.ResnetInversion_Generic(nc=3)
+
+    elif mode == "whitebox":
+        if layer == "maxpool":
+            return Model.ResNetInversion_MaxPool(nc=3)
+        # elif layer == "relu":
+        #     return Model.ResNetInversion_ReLU(nc=3)
+        else:
+            raise ValueError(f"Unknown layer: {layer}")
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+
+
 def main():
     # Suppress warnings
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -182,8 +199,9 @@ def main():
     # Get default parameters
     default_params = get_default_params()
 
-    # TODO add arquitecture of attack net
     # Use default values from the function
+    parser.add_argument('--mode', type=str, default=str(default_params['mode']), metavar='MODE',
+                help=f'blackbox architecture or architecture of attacked net os known (default: {default_params["mode"]}, can be a string identifier)')
     parser.add_argument('--layer', type=str, default=str(default_params['layer']), metavar='LAYER',
                     help=f'layer to attack (default: {default_params["layer"]}, can be a string identifier)')
     parser.add_argument('--batch-size', type=int, default=default_params['batch-size'], metavar='N',
@@ -210,13 +228,12 @@ def main():
 
     print(args)
 
-    # TODO add arquitecture of attack net (all_white vs black)
+    mode = args.mode
     layer = args.layer
-    layer_name = str(layer) + "_all_white_64"
-    flag = str(layer) + "_all_white_64"
+    # layer_name = str(layer) + "_all_white_64"
+    # flag = str(layer) + "_all_white_64"
     seed = args.seed
-    mode = "train"
-    step = args.gamma 
+    # step = args.gamma 
     end_epoch = args.epochs
     tv_weight = args.tv_weight
     batch_size = args.batch_size
@@ -242,8 +259,8 @@ def main():
     np.random.seed(args.seed)
     random.seed(args.seed)
 
-    os.makedirs('../ImagResult/blackbox/'+mode+'/'+layer_name, exist_ok=True)
-    os.makedirs('../ModelResult/blackbox/'+mode+'/'+layer_name, exist_ok=True)
+    os.makedirs('../ImagResult/'+mode+'/'+layer, exist_ok=True)
+    os.makedirs('../ModelResult/'+mode+'/'+layer, exist_ok=True)
 
     transform = transforms.Compose([
         transforms.Resize(256),
@@ -268,39 +285,36 @@ def main():
     model_path = "../ModelResult/classifier/classifier.pth"
     model = torch.load(model_path)
 
-    classifier = ResNet50EMBL(model).to(device)
+    classifier = model.ResNet50EMBL(model).to(device)
 
     # print(summary(classifier, (1, 64, 64),)) <--------------- Important line to check the model architecture
 
     print("Classifier loaded.")
 
-    inversion = ResNetInversion_MaxPool(nc=3).to(device)
+    # Load inversion
+    path = '../ModelResult/'+ mode + '/' + layer +'/inversion.pth'
+    inversion = get_model_architecture(mode, layer).to(device)
 
     print("Inversion loaded.")
 
     optimizer = optim.Adam(inversion.parameters(), lr=learning_rate, betas=(0.5, 0.999), amsgrad=True)
 
-    # Load classifier
-    path = "../ModelResult/classifier/classifier.pth"
 
-    checkpoint = torch.load(path, map_location=device)
-    classifier = ResNet50EMBL(checkpoint).to(device)
-
-    # Load inversion
-    path = '../ModelResult/blackbox/'+layer_name+'/inversion.pth'
-    best_mse_loss = 0.0600 # TODO why this number?
+    best_mse_loss = float('inf')
     begin_epoch = 1
 
-    print("Loading inversion model...")
+    print("Trying to load inversion model from checkpoint...")
 
     try:
         checkpoint = torch.load(path, map_location=device)
         inversion.load_state_dict(checkpoint['model'])
-        begin_epoch = checkpoint['epoch']
+        begin_epoch = checkpoint['epoch'] + 1
         best_mse_loss = checkpoint['best_mse_loss']
-        print("=> loaded inversion checkpoint '{}' (epoch {}, best_mse_loss {:.4f})".format(path, epoch, best_mse_loss))
+        print("=> loaded inversion checkpoint '{}' (epoch {}, best_mse_loss {:.4f})".format(path, checkpoint['epoch'], best_mse_loss))
     except:
         print("=> load inversion checkpoint '{}' failed".format(path))
+        begin_epoch = 1  # Comenzar desde la primera época si no hay checkpoint
+        best_mse_loss = float('inf')
 
     # target_mse_loss = best_mse_loss - 0.0005
 
@@ -313,7 +327,7 @@ def main():
     best_mse_loss = float('inf')
     patience_counter = 0
 
-    for epoch in range(begin_epoch, end_epoch):
+    for epoch in range(begin_epoch, end_epoch + 1):
         print("Epoch: ", epoch)
         train(classifier, inversion, device, train_loader, optimizer, epoch, tv_weight, layer)
         mse_loss = test(classifier, inversion, device, test_loader, layer)
@@ -332,7 +346,7 @@ def main():
                 'optimizer': optimizer.state_dict(),
                 'best_mse_loss': best_mse_loss
             }
-            torch.save(state, '../ModelResult/blackbox/'+mode+'/'+layer_name+'/inversion.pth')
+            torch.save(state, '../ModelResult/'+mode+'/'+ layer +'/inversion.pth')
             print('\nTest inversion model on test set: Average MSE loss: {}_{:.4f}\n'.format(epoch, mse_loss))
             # record(classifier, inversion, device, test_loader, epoch, flag+"_same", 32, mse_loss, mode, layer_name, end_epoch)
         else:
@@ -354,7 +368,7 @@ def main():
             }
             if(needs_to_save_model(save_model, layer, mse_loss)):
                 print("Saving final inversion model...") 
-                torch.save(state, '../ModelResult/blackbox/'+mode+'/'+layer_name+'/final_inversion.pth')
+                torch.save(state, '../ModelResult/'+mode+'/'+ layer +'/final_inversion.pth')
             # record(classifier, inversion, device, test_loader, epoch, flag + "_same", 32, mse_loss, mode, layer_name, end_epoch)
 
 if __name__ == '__main__':

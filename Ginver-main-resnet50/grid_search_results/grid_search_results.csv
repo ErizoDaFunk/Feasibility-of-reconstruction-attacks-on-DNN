@@ -1,1 +1,4 @@
-layer,batch-size,test-batch-size,epochs,tv-weight,patience,lr,gamma,mse_loss
+mode,layer,batch-size,test-batch-size,epochs,tv-weight,patience,lr,gamma,mse_loss
+whitebox,maxpool,8,1000,1,0.05,3,0.0002,0.7,61.7179
+whitebox,maxpool,8,1000,2,0.05,3,0.0002,0.7,56.8242
+whitebox,maxpool,8,1000,3,0.05,3,0.0002,0.7,54.5333

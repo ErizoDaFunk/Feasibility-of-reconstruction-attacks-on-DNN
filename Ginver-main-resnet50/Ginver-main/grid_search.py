@@ -73,7 +73,7 @@ def has_been_tested(existing_results, params):
     
     # Get common keys between params and existing_results that we want to compare
     # Consider only these important parameters for comparison
-    important_keys = ['layer', 'batch-size', 'tv-weight', 'patience', 'lr']
+    important_keys = ['mode', 'layer', 'batch-size', 'epochs', 'tv-weight', 'patience', 'lr']
     common_keys = [k for k in important_keys if k in params and k in existing_results.columns]
     
     # Verify we have enough keys to make a meaningful comparison
@@ -85,14 +85,32 @@ def has_been_tested(existing_results, params):
     for _, row in existing_results.iterrows():
         match = True
         for key in common_keys:
-            # Convert to float for numerical comparison to avoid int/float mismatch
-            param_val = float(params[key])
-            row_val = float(row[key])
-            
-            # Use small tolerance for float comparison
-            if abs(param_val - row_val) > 1e-6:
-                match = False
-                break
+            try:
+                # Check if the key exists and can be safely converted
+                if key not in params or key not in row:
+                    match = False
+                    break
+                
+                # Handle string values like 'maxpool' that shouldn't be converted to float
+                if isinstance(params[key], str) and not params[key].replace('.', '', 1).isdigit():
+                    # For string parameters, compare directly
+                    if str(params[key]) != str(row[key]):
+                        match = False
+                        break
+                else:
+                    # For numeric parameters, convert to float for comparison
+                    param_val = float(params[key])
+                    row_val = float(row[key])
+                    
+                    # Use small tolerance for float comparison
+                    if abs(param_val - row_val) > 1e-6:
+                        match = False
+                        break
+            except (ValueError, TypeError):
+                # If conversion fails, compare as strings
+                if str(params[key]) != str(row[key]):
+                    match = False
+                    break
         
         if match:
             print(f"Found matching parameter set in existing results")
@@ -110,20 +128,21 @@ def grid_search():
 
     # Define columns that should be saved in the CSV files
     # Only include parameters we want to track in the results
-    csv_columns = ['layer', 'batch-size', 'test-batch-size', 'epochs', 'tv-weight', 'patience', 'lr', 'gamma', 'mse_loss']
+    csv_columns = ['mode', 'layer', 'batch-size', 'test-batch-size', 'epochs', 'tv-weight', 'patience', 'lr', 'gamma', 'mse_loss']
     
     # Get default values from attack.py
     default_values = get_default_params()
     
     # Define hyperparameter values to explore
     param_grid = {
+        'mode': ['whitebox'],
         'layer': ['maxpool'],
-        'batch-size': [32],
-        'test-batch-size': [64],
-        'lr': [0.0001],
-        'tv-weight': [0.01, 0.025, 0.05, 0.1, 0.5], # it is not been used
-        'patience': [2],
-        'epochs': [14],  # Fixed epochs since we have early stopping
+        'batch-size': [8],
+        'test-batch-size': [1000],
+        'lr': [0.0002],
+        'tv-weight': [0.05], # it is not been used
+        'patience': [3],
+        'epochs': [2, 3, 1],  # Fixed epochs since we have early stopping
         'no-cuda': [True],  # Use CPU for testing
         'save-model': [True]
     }
