@@ -218,12 +218,17 @@ def main():
                         help=f'learning rate (default: {default_params["lr"]})')
     parser.add_argument('--gamma', type=float, default=default_params['gamma'], metavar='M',
                         help=f'Learning rate step gamma (default: {default_params["gamma"]})')
-    parser.add_argument('--no-cuda', action='store_true', default=default_params['no-cuda'],
-                        help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=default_params['seed'], metavar='S',
                         help=f'random seed (default: {default_params["seed"]})')
+    parser.add_argument('--no-cuda', action='store_true', default=default_params['no-cuda'],
+                    help='disables CUDA training (default: %(default)s)')
+    parser.add_argument('--cuda', dest='no_cuda', action='store_false',
+                        help='enables CUDA training (overrides --no-cuda)')
     parser.add_argument('--save-model', action='store_true', default=default_params['save-model'],
-                        help='For Saving the current Model')
+                        help='For Saving the current Model (default: %(default)s)')
+    parser.add_argument('--no-save-model', dest='save_model', action='store_false',
+                        help='Disable saving the current Model')
+
     args = parser.parse_args()
 
     print(args)
@@ -243,14 +248,24 @@ def main():
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
-    if use_cuda:
+    print(torch.__version__)
+    print(torch.cuda.is_available())
+    print(torch.cuda.device_count())
+    print(torch.version.cuda)
 
+    print("Use cuda flag: ", not args.no_cuda)
+    print("Cuda is available: ", torch.cuda.is_available())
+    print("Use cuda: ", use_cuda)
+
+    if use_cuda:
+        print("Using CUDA")
         device = torch.device("cuda")
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
     else:
+        print("Using CPU")
         device = torch.device("cpu")
 
 
@@ -282,10 +297,14 @@ def main():
 
     print(f"Data loaded: {len(train_loader.dataset)} training samples, {len(test_loader.dataset)} test samples.")
 
-    model_path = "../ModelResult/classifier/classifier.pth"
-    model = torch.load(model_path)
+    # model_path = "../ModelResult/classifier/classifier.pth"
+    # model = torch.load(model_path)
 
-    classifier = model.ResNet50EMBL(model).to(device)
+    # classifier = model.ResNet50EMBL(model).to(device)
+
+    model_path = "../ModelResult/classifier/classifier.pth"
+    model_weights = torch.load(model_path, map_location=device)
+    classifier = Model.ResNet50EMBL(model_weights).to(device)
 
     # print(summary(classifier, (1, 64, 64),)) <--------------- Important line to check the model architecture
 
