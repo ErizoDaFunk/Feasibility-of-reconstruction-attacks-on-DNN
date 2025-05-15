@@ -158,8 +158,8 @@ def get_default_params():
     return {
         'mode': "whitebox",
         'layer': "maxpool",
-        'batch-size': 8,
-        'test-batch-size': 1000,
+        'batch-size': 64,
+        'test-batch-size': 64,
         'epochs': 14,
         'tv-weight': 0.05,
         'patience': 3,
@@ -263,6 +263,7 @@ def main():
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
+        print(torch.cuda.get_device_properties(device))
 
     else:
         print("Using CPU")

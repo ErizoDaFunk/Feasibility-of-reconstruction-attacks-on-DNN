@@ -50,3 +50,38 @@ docker push erizodafunk/ginver-test
 monitorear procesos:
 htop
 
+
+
+
+
+
+------------------------------------------------------------
+
+Namespace(mode='whitebox', layer='maxpool', batch_size=64, test_batch_size=64, epochs=1, tv_weight=0.05, patience=3, lr=0.0002, gamma=0.7, seed=1, no_cuda=False, save_model=True)
+2.5.1+cu121
+True
+1
+12.1
+Use cuda flag:  True
+Cuda is available:  True
+Use cuda:  True
+Using CUDA
+Loading Embl dataset...
+Data loaded: 18591 training samples, 4647 test samples.
+Classifier loaded.
+Inversion loaded.
+Trying to load inversion model from checkpoint...
+=> load inversion checkpoint '../ModelResult/whitebox/maxpool/inversion.pth' failed
+Inversion model loaded.
+Epoch:  1
+Train epoch 1 [0/18591 (0%)]
+Train epoch 1 [6400/18591 (34%)]
+Train epoch 1 [12800/18591 (69%)]
+ Train epoch 1 
+Epoch: 1 Average MSE loss: 118.4967
+
+Test inversion model on test set: Average MSE loss: 1_118.4967
+
+
+con cpu: 12.33
+con gpu: 5.42

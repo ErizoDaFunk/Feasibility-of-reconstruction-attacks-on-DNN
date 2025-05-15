@@ -16,11 +16,22 @@ def run_attack(params):
     
     # Add parameters to the command
     for param, value in params.items():
-        if param in ['no-cuda', 'save-model'] and value is True:
-            # For boolean arguments, only add the flag without a value
-            cmd.append(f"--{param}")
+        if param == 'no-cuda':
+            # If no-cuda is False, use --cuda instead
+            if value is False:
+                cmd.append("--cuda")
+            # If no-cuda is True, add the --no-cuda flag
+            elif value is True:
+                cmd.append("--no-cuda")
+        elif param == 'save-model':
+            # If save-model is False, use --no-save-model
+            if value is False:
+                cmd.append("--no-save-model")
+            # If save-model is True, add the --save-model flag
+            elif value is True:
+                cmd.append("--save-model")
         else:
-            # For other arguments, add both the name and value
+            # For non-boolean arguments, add both name and value
             cmd.append(f"--{param}")
             cmd.append(str(value))
     
@@ -137,13 +148,13 @@ def grid_search():
     param_grid = {
         'mode': ['whitebox'],
         'layer': ['maxpool'],
-        'batch-size': [8],
-        'test-batch-size': [1000],
+        'batch-size': [64],
+        'test-batch-size': [64],
         'lr': [0.0002],
         'tv-weight': [0.05], # it is not been used
         'patience': [3],
-        'epochs': [2, 3, 1],  # Fixed epochs since we have early stopping
-        'no-cuda': [True],  # Use CPU for testing
+        'epochs': [15],  # Fixed epochs since we have early stopping
+        'no-cuda': [False],  # Use CPU for testing
         'save-model': [True]
     }
     
