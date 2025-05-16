@@ -1043,6 +1043,30 @@ class ResNet50EMBL(nn.Module):
 #                                                                              #
 ################################################################################
 
+class ResNetInversion_Conv1(nn.Module):
+    def __init__(self, nc=3, ngf=64):
+        super(ResNetInversion_Conv1, self).__init__()
+        
+        self.decoder = nn.Sequential(
+            # Invert Conv1 (7×7, 64, stride 2)
+            nn.ConvTranspose2d(
+                in_channels=64,         # Input features from conv1
+                out_channels=nc,        # Output channels (RGB image)
+                kernel_size=7,          # Same as original
+                stride=2,               # Same as original
+                padding=3,              # Same as original
+                output_padding=1,       # Needed for odd dimensions
+                bias=False              # Typically no bias in ResNet conv1
+            ),
+            
+            # Final activation to produce valid image values
+            nn.Tanh()
+        )
+    
+    def forward(self, x):
+        return self.decoder(x)
+
+
 class ResNetInversion_MaxPool(nn.Module):
     def __init__(self, nc=3, ngf=64):
         super(ResNetInversion_MaxPool, self).__init__()

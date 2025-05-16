@@ -178,6 +178,8 @@ def get_model_architecture(mode, layer):
         return Model.ResnetInversion_Generic(nc=3)
 
     elif mode == "whitebox":
+        if layer == "conv1":
+            return Model.ResNetInversion_Conv1(nc=3)
         if layer == "maxpool":
             return Model.ResNetInversion_MaxPool(nc=3)
         # elif layer == "relu":
