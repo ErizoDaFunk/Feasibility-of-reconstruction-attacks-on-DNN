@@ -1,3 +1,11 @@
+arquitecturas invertidas para las distintas layers
+result attack modificarlo para elegir modo y layer
+modificar el attack para que no empiece la epoc desde el checkpoint epoch si no desde 0
+
+
+--------------------------------------
+
+
  Train epoch 13 
 Epoch: 13 Average MSE loss: 0.0086
 
@@ -85,3 +93,8 @@ Test inversion model on test set: Average MSE loss: 1_118.4967
 
 con cpu: 12.33
 con gpu: 5.42
+
+
+--------------------------------------------------------------------------------------
+
+

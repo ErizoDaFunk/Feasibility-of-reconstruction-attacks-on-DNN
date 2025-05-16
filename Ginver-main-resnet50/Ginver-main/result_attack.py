@@ -19,7 +19,6 @@ print(f"Using device: {device}")
 
 # Define the layer to analyze
 layer_name = "maxpool"  # Change this to the layer you want to analyze
-flag = str(layer_name) + "_all_white_64"  # Match the path format used in attack.py
 mode = "whitebox"  # Same as in attack.py
 
 # Load classifier model
