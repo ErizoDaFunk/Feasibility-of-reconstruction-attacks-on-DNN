@@ -175,7 +175,27 @@ def get_model_architecture(mode, layer):
     """Return the model architecture based on the mode and layer"""
 
     if mode == "blackbox":
-        return Model.ResnetInversion_Generic(nc=3)
+        layer_output_channels = {
+            # Early layers
+            'conv1': 64,
+            'relu1': 64,
+            'maxpool': 64,
+            # Layer 1 blocks
+            'layer1': 256,
+            'layer1_0': 256, 'layer1_1': 256, 'layer1_2': 256,
+            # Layer 2 blocks
+            'layer2': 512,
+            'layer2_0': 512, 'layer2_1': 512, 'layer2_2': 512, 'layer2_3': 512,
+            # Layer 3 blocks
+            'layer3': 1024,
+            'layer3_0': 1024, 'layer3_1': 1024, 'layer3_2': 1024, 
+            'layer3_3': 1024, 'layer3_4': 1024, 'layer3_5': 1024,
+            # Layer 4 blocks
+            'layer4': 2048,
+            'layer4_0': 2048, 'layer4_1': 2048, 'layer4_2': 2048,
+        }
+        nz = layer_output_channels.get(layer, 1024)  # Default to 1024 if layer not found
+        return Model.ResnetInversion_Generic(nc=3, ngf=64, nz=nz)
 
     elif mode == "whitebox":
         if layer == "conv1":
