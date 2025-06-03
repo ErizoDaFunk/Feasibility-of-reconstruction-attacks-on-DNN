@@ -26,13 +26,6 @@ layer,batch-size,lr,tv-weight,patience,epochs,no-cuda,save-model,mse_loss
 
 ---------------------------------------------------------------------------------------
 
--Averiguar por que mejor loss = peor definicion, hay que comparar con mse y ssim real
--Arreglar el parallel grid search
-
----------------------------------------------------------------------------------------
-
-
-
 
 termius, entro en proxy1
 
@@ -59,6 +52,8 @@ monitorear procesos:
 htop
 
 
+
+gh auth login
 
 
 

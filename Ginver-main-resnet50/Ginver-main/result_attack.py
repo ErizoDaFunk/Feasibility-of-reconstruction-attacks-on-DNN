@@ -138,14 +138,14 @@ for i, image_path in enumerate(test_image_paths[:num_images]):
     mse_values.append(mse_value)
     ssim_values.append(ssim_value)
     
-    # Display original image
-    axes[i, 0].imshow(original_img_np)
-    axes[i, 0].set_title(f'Original Image {i+1}\n{os.path.basename(image_path)}')
+    # Display original image in grayscale
+    axes[i, 0].imshow(original_gray, cmap='gray')
+    axes[i, 0].set_title(f'Original Image {i+1} (Grayscale)\n{os.path.basename(image_path)}')
     axes[i, 0].axis('off')
     
-    # Display inverted image
-    axes[i, 1].imshow(inverted_img_np)
-    axes[i, 1].set_title(f'Reconstructed Image {i+1}')
+    # Display inverted image in grayscale
+    axes[i, 1].imshow(inverted_gray, cmap='gray')
+    axes[i, 1].set_title(f'Reconstructed Image {i+1} (Grayscale)')
     axes[i, 1].axis('off')
     
     # Display metrics

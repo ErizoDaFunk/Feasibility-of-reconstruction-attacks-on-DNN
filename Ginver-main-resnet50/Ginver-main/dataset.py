@@ -14,7 +14,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 url = "https://github.com/metaspace2020/offsample/releases/download/0.2/GS.tar.gz"
 filename = "GS.tar.gz"
 file_path = os.path.join(DATA_DIR, filename)
-extract_path = os.path.join(DATA_DIR, 'GS')
+extract_path = os.path.join(DATA_DIR, 'GS_original')
 
 def download_and_extract():
     if not os.path.exists(file_path):
