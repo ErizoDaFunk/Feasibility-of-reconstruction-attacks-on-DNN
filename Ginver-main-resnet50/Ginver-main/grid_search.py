@@ -147,14 +147,14 @@ def grid_search():
     
     # Define hyperparameter values to explore
     param_grid = {
-        'mode': ['whitebox'],
-        'layer': ['conv1'],
+        'mode': ['blackbox'],
+        'layer': ['conv1', 'relu1', 'maxpool', 'layer1'],
         'batch-size': [64],
         'test-batch-size': [64],
         'lr': [0.001],  # Learning rates to test
         'tv-weight': [0.1], # it is not been used
         'patience': [3],
-        'epochs': [15],  # Fixed epochs since we have early stopping
+        'epochs': [25],  # Fixed epochs since we have early stopping
         'no-cuda': [False],  # Use CPU for testing
         'save-model': [True]
     }
