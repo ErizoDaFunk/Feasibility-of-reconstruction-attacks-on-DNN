@@ -1065,6 +1065,25 @@ class ResNetInversion_Conv1(nn.Module):
     
     def forward(self, x):
         return self.decoder(x)
+    
+class ResNetInversion_bn1(nn.Module):
+    def __init__(self, nc=3, ngf=64):
+        super(ResNetInversion_bn1, self).__init__()
+        
+        self.decoder = nn.Sequential(
+
+            # Invert BatchNorm - just use another BatchNorm with learned parameters
+            nn.BatchNorm2d(64),
+            
+            # Invert Conv (7×7, 64, stride 2) - transpose convolution
+            nn.ConvTranspose2d(64, nc, kernel_size=7, stride=2, padding=3, output_padding=1),
+            
+            # Final activation to produce image-like outputs
+            nn.Tanh()
+        )
+    
+    def forward(self, x):
+        return self.decoder(x)
 
 
 class ResNetInversion_MaxPool(nn.Module):
@@ -1094,7 +1113,7 @@ class ResNetInversion_MaxPool(nn.Module):
 
 ################################################################################
 #                                                                              #
-#           ResNet Inversion Model Arquitecture proposde by Paper              #
+#           ResNet Inversion Model Arquitecture proposed by Paper              #
 #                                                                              #
 ################################################################################
 
@@ -1128,7 +1147,32 @@ class ResnetInversion_Generic(nn.Module):
             nn.Sigmoid()
         )
 
+    # def forward(self, x):
+    #     # 这个nz应该是1024
+    #     print(f"Input shape: {x.shape}")  # Debugging line to check input shape
+    #     x = x.view(-1, self.nz, 7, 7)
+    #     print(f"Reshaped input: {x.shape}")
+    #     x = self.decoder(x)
+    #     print(f"Output shape: {x.shape}")
+    #     return x
+
     def forward(self, x):
-        # 这个nz应该是1024
-        x = x.view(-1, self.nz, 7, 7)
+        # Get original batch size
+        batch_size = x.size(0)
+        
+        # Check feature map size to adapt reshaping
+        if x.dim() == 2:  # Already flattened
+            x = x.view(batch_size, self.nz, 7, 7)
+        elif x.dim() == 4:  # Has spatial dimensions
+            # Get current spatial dimensions
+            _, _, h, w = x.size()
+            
+            # If spatial dimensions need adjustment, do it properly
+            if h != 7 or w != 7:
+                # Resize using adaptive pooling to preserve batch size
+                x = F.adaptive_avg_pool2d(x, (7, 7))
+        
+        # Ensure batch size is preserved
+        x = x.view(batch_size, self.nz, 7, 7)
+        
         return self.decoder(x)

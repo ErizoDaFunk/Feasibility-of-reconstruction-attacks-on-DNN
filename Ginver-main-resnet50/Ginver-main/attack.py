@@ -42,10 +42,16 @@ def train(classifier, inversion, device, data_loader, optimizer, epoch, tv_weigh
         # print("bbbb ", reconstruction.shape)
 
         reconstruction_prediction = classifier(reconstruction, layer_name=layer)
+
+        # print("1. Reconstruction prediction shape: ", reconstruction_prediction.shape)
+        # print("1. Prediction shape: ", prediction.shape)
                                                 
         # Ensure the size of reconstruction_prediction matches prediction
         if reconstruction_prediction.size() != prediction.size():
-            reconstruction_prediction = F.interpolate(reconstruction_prediction, size=prediction.size()[2:])                                     
+            reconstruction_prediction = F.interpolate(reconstruction_prediction, size=prediction.size()[2:])
+
+        # print("2. Reconstruction prediction shape after interpolation: ", reconstruction_prediction.shape)
+        # print("2. Prediction shape: ", prediction.shape)                                     
                                                 
         loss_TV = TV(reconstruction)
         loss_mse = F.mse_loss(reconstruction_prediction, prediction)
@@ -166,7 +172,7 @@ def get_default_params():
         'lr': 0.0002,
         'gamma': 0.7,
         'seed': 1,
-        'no-cuda': True,
+        'no-cuda': False,
         'save-model': True
     }
 
@@ -345,22 +351,20 @@ def main():
     best_mse_loss = float('inf')
     begin_epoch = 1
 
-    print("Trying to load inversion model from checkpoint...")
+    # print("Trying to load inversion model from checkpoint...")
 
-    try:
-        checkpoint = torch.load(path, map_location=device)
-        inversion.load_state_dict(checkpoint['model'])
-        begin_epoch = checkpoint['epoch'] + 1
-        best_mse_loss = checkpoint['best_mse_loss']
-        print("=> loaded inversion checkpoint '{}' (epoch {}, best_mse_loss {:.4f})".format(path, checkpoint['epoch'], best_mse_loss))
-    except:
-        print("=> load inversion checkpoint '{}' failed".format(path))
-        begin_epoch = 1  # Comenzar desde la primera época si no hay checkpoint
-        best_mse_loss = float('inf')
+    # try:
+    #     checkpoint = torch.load(path, map_location=device)
+    #     inversion.load_state_dict(checkpoint['model'])
+    #     begin_epoch = checkpoint['epoch'] + 1
+    #     best_mse_loss = checkpoint['best_mse_loss']
+    #     print("=> loaded inversion checkpoint '{}' (epoch {}, best_mse_loss {:.4f})".format(path, checkpoint['epoch'], best_mse_loss))
+    # except:
+    #     print("=> load inversion checkpoint '{}' failed".format(path))
+    #     begin_epoch = 1  # Comenzar desde la primera época si no hay checkpoint
+    #     best_mse_loss = float('inf')
 
-    # target_mse_loss = best_mse_loss - 0.0005
-
-    print("Inversion model loaded.")
+    # print("Inversion model loaded.")
 
     
     patience = args.patience

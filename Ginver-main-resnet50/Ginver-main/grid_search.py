@@ -5,6 +5,7 @@ import pandas as pd
 import re
 from datetime import datetime
 import sys
+import torch
 
 # Import default parameters from attack.py
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -150,13 +151,38 @@ def grid_search():
         'layer': ['conv1'],
         'batch-size': [64],
         'test-batch-size': [64],
-        'lr': [0.0002, 0.0005, 0.001],  # Learning rates to test
-        'tv-weight': [0.025, 0.05, 0.1], # it is not been used
+        'lr': [0.001],  # Learning rates to test
+        'tv-weight': [0.1], # it is not been used
         'patience': [3],
         'epochs': [15],  # Fixed epochs since we have early stopping
-        'no-cuda': [True],  # Use CPU for testing
+        'no-cuda': [False],  # Use CPU for testing
         'save-model': [True]
     }
+
+    no_cuda = param_grid.get('no-cuda', False)[0]
+    use_cuda = torch.cuda.is_available() and not no_cuda
+    seed = 1
+
+    print(torch.__version__)
+    print(torch.cuda.is_available())
+    print(torch.cuda.device_count())
+    print(torch.version.cuda)
+
+    print("Use cuda flag: ", not no_cuda)
+    print("Cuda is available: ", torch.cuda.is_available())
+    print("Use cuda: ", use_cuda)
+
+    if use_cuda:
+        print("Using CUDA")
+        device = torch.device("cuda")
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        print(torch.cuda.get_device_properties(device))
+
+    else:
+        print("Using CPU")
+        device = torch.device("cpu")
     
     # Create all possible parameter combinations
     keys = list(param_grid.keys())
