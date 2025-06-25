@@ -3,7 +3,7 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import ImageFolder
 from torchvision import datasets
-from Model import ResNetInversion_Conv1, ResNet50EMBL
+from Model import ResnetInversion_Generic, ResNet50EMBL
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
@@ -23,8 +23,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Define the layer to analyze
-layer_name = "conv1"  # Change this to the layer you want to analyze
-mode = "whitebox"  # Same as in attack.py
+layer_name = "layer1"  # Change this to the layer you want to analyze
+mode = "blackbox"  # Same as in attack.py
 
 # Load classifier model
 model_path = "../ModelResult/classifier/classifier.pth"
@@ -34,7 +34,7 @@ classifier.eval()
 print("Classifier model loaded.")
 
 # Create inversion model with the SAME class used in attack.py
-inversion = ResNetInversion_Conv1(nc=3).to(device)  # Changed to match attack.py
+inversion = ResnetInversion_Generic(nc=3, ngf=64, nz=256).to(device)  # Changed to match attack.py
 
 # Try to load the saved inversion model
 try:
