@@ -148,11 +148,16 @@ def grid_search():
     # Define hyperparameter values to explore
     param_grid = {
         'mode': ['blackbox'],
-        'layer': ['maxpool', 'layer1', 'layer3'],
+        'layer': ['conv1', 'relu1', 'maxpool',
+                  'layer1_0', 'layer1_1', 'layer1',
+                  'layer2_0', 'layer2_1', 'layer2_2', 'layer2',
+                  'layer3_0', 'layer3_1', 'layer3_2', 'layer3_3', 'layer3_4', 'layer3',
+                  'layer4_0', 'layer4_1', 'layer4',
+                  'avgpool', 'fc'],
         'batch-size': [64],
         'test-batch-size': [64],
-        'lr': [0.001, 0.0002, 0.0005],  # Learning rates to test
-        'tv-weight': [0.05, 0.1, 0.2], # it is not been used
+        'lr': [0.001],  # Learning rates to test
+        'tv-weight': [0.2], # it is not been used
         'patience': [3],
         'epochs': [50],  # Fixed epochs since we have early stopping
         'no-cuda': [False],  # Use CPU for testing
