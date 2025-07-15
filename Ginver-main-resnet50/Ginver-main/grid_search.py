@@ -6,13 +6,14 @@ import re
 from datetime import datetime
 import sys
 import torch
+import time
 
 # Import default parameters from attack.py
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from attack import get_default_params
 
 def run_attack(params):
-    """Executes attack.py with the specified parameters and returns the best MSE loss"""
+    """Executes attack.py with the specified parameters and returns the best MSE loss and elapsed time"""
     cmd = ["python", "attack.py"]
     
     # Add parameters to the command
@@ -38,12 +39,14 @@ def run_attack(params):
     
     # Execute the command
     print(f"Executing: {' '.join(cmd)}")
+    start_time = time.time()
     result = subprocess.run(cmd, capture_output=True, text=True)
+    elapsed_time = time.time() - start_time
     
     # Check for errors
     if result.returncode != 0:
         print(f"Error executing command: {result.stderr}")
-        return None
+        return None, elapsed_time
     
     # Extract the best MSE loss using regular expressions
     output = result.stdout
@@ -61,9 +64,9 @@ def run_attack(params):
         print("Could not extract MSE loss from output")
         print("Last 10 lines of output:")
         print(last_lines)
-        return None
+        return None, elapsed_time
     
-    return mse_loss
+    return mse_loss, elapsed_time
 
 def params_to_key(params, comparison_keys=None):
     """
@@ -140,7 +143,7 @@ def grid_search():
 
     # Define columns that should be saved in the CSV files
     # Only include parameters we want to track in the results
-    csv_columns = ['mode', 'layer', 'batch-size', 'test-batch-size', 'epochs', 'tv-weight', 'patience', 'lr', 'gamma', 'mse_loss']
+    csv_columns = ['mode', 'layer', 'batch-size', 'test-batch-size', 'epochs', 'tv-weight', 'patience', 'lr', 'gamma', 'mse_loss', 'training_time']
     
     # Get default values from attack.py
     default_values = get_default_params()
@@ -229,8 +232,8 @@ def grid_search():
         print(f"\nCombination {i+1}/{total_combinations}:")
         print(params)
         
-        # Execute attack.py with current parameters
-        mse_loss = run_attack(params)
+        # Execute attack.py with current parameters and record time
+        mse_loss, elapsed_time = run_attack(params)
         executed_combinations += 1
         
         # Create a standardized result dictionary with only specific columns
@@ -238,6 +241,8 @@ def grid_search():
         for col in csv_columns:
             if col == 'mse_loss':
                 result_dict[col] = mse_loss
+            elif col == 'training_time':
+                result_dict[col] = elapsed_time
             elif col in params:
                 result_dict[col] = params[col]
             else:
