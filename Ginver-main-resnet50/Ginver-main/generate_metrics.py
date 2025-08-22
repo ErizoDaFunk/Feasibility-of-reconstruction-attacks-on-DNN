@@ -7,6 +7,7 @@ from skimage.metrics import structural_similarity as ssim
 from PIL import Image
 import pandas as pd
 from glob import glob
+import lpips
 
 # Paths
 TEST_ROOT = "../data/GS_organized/test"
@@ -15,6 +16,9 @@ CLASSIFIER_PATH = "../ModelResult/classifier/classifier.pth"
 METRICS_CSV = "metrics.csv"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Initialize LPIPS model
+lpips_model = lpips.LPIPS(net='alex').to(device)  # or 'vgg', 'squeeze'
 
 # ImageNet normalization (as used in training)
 transform = transforms.Compose([
@@ -109,7 +113,13 @@ for layer_name in sorted(os.listdir(MODEL_ROOT)):
 
     mse_list = []
     ssim_list = []
-    correct = 0
+    lpips_list = []
+    
+    # Confusion matrix counters
+    true_positives = 0   # Predicted onsample, actually onsample
+    true_negatives = 0   # Predicted offsample, actually offsample  
+    false_positives = 0  # Predicted onsample, actually offsample
+    false_negatives = 0  # Predicted offsample, actually onsample
     total = 0
 
     for img_path, label_name in test_images:
@@ -128,42 +138,67 @@ for layer_name in sorted(os.listdir(MODEL_ROOT)):
         original_denorm = denormalize(input_tensor).clamp(0, 1)
         reconstructed_denorm = reconstructed.clamp(0, 1)
 
-        # Convert to numpy
+        # Convert to numpy for MSE and SSIM
         orig_np = original_denorm.cpu().numpy().squeeze().transpose(1, 2, 0)
         recon_np = reconstructed_denorm.cpu().numpy().squeeze().transpose(1, 2, 0)
 
-        # Convert to grayscale for metrics
+        # Convert to grayscale for MSE and SSIM
         orig_gray = np.mean(orig_np, axis=2) if orig_np.ndim == 3 else orig_np
         recon_gray = np.mean(recon_np, axis=2) if recon_np.ndim == 3 else recon_np
 
-        # Compute metrics
+        # Compute MSE and SSIM
         mse_val = np.mean((orig_gray - recon_gray) ** 2)
         ssim_val = ssim(orig_gray, recon_gray, data_range=orig_gray.max() - orig_gray.min())
         mse_list.append(mse_val)
         ssim_list.append(ssim_val)
 
-        # Classification accuracy: classify reconstructed image
+        # Compute LPIPS (requires tensors in [-1, 1] range)
+        with torch.no_grad():
+            # Convert from [0, 1] to [-1, 1] for LPIPS
+            orig_lpips = original_denorm * 2.0 - 1.0
+            recon_lpips = reconstructed_denorm * 2.0 - 1.0
+            lpips_val = lpips_model(orig_lpips, recon_lpips).item()
+            lpips_list.append(lpips_val)
+
+        # Classification accuracy and confusion matrix
         with torch.no_grad():
             pred_logits = classifier(reconstructed_denorm, layer_name=None)
             pred_class = torch.argmax(pred_logits, dim=1).item()
             # 0: offsample, 1: onsample
             true_class = 0 if label_name == 'offsample' else 1
-            if pred_class == true_class:
-                correct += 1
+            
+            # Update confusion matrix
+            if true_class == 1 and pred_class == 1:
+                true_positives += 1
+            elif true_class == 0 and pred_class == 0:
+                true_negatives += 1
+            elif true_class == 0 and pred_class == 1:
+                false_positives += 1
+            elif true_class == 1 and pred_class == 0:
+                false_negatives += 1
+            
             total += 1
 
     avg_mse = float(np.mean(mse_list))
     avg_ssim = float(np.mean(ssim_list))
-    acc = correct / total if total > 0 else 0.0
+    avg_lpips = float(np.mean(lpips_list))
+    acc = (true_positives + true_negatives) / total if total > 0 else 0.0
 
     results.append({
         "layer": layer_name,
         "mode": "blackbox",
         "mse": avg_mse,
         "ssim": avg_ssim,
-        "class_acc": acc
+        "lpips": avg_lpips,
+        "class_acc": acc,
+        "true_positives": true_positives,
+        "true_negatives": true_negatives,
+        "false_positives": false_positives,
+        "false_negatives": false_negatives,
+        "total_samples": total
     })
-    print(f"Layer: {layer_name} | MSE: {avg_mse:.4f} | SSIM: {avg_ssim:.4f} | Accuracy: {acc:.4f}")
+    print(f"Layer: {layer_name} | MSE: {avg_mse:.4f} | SSIM: {avg_ssim:.4f} | LPIPS: {avg_lpips:.4f} | Accuracy: {acc:.4f}")
+    print(f"  Confusion Matrix - TP: {true_positives}, TN: {true_negatives}, FP: {false_positives}, FN: {false_negatives}")
 
 # Write results to CSV
 df = pd.DataFrame(results)
